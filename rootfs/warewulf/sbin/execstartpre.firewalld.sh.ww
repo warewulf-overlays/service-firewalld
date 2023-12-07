@@ -1,0 +1,7 @@
+#!/bin/bash
+
+# Author: griznog
+# Purpose: Run before firewalld.
+
+# Placeholder for now.
+exit 0

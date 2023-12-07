@@ -1,0 +1,12 @@
+[Unit]
+Description=Enables/Disables Firewalld services
+Requires=firewalld.service
+PartOf=firewalld.service
+After=firewalld.service
+
+[Service]
+ExecStart=/warewulf/sbin/service.warewulf-overlay-firewalld-setup.sh
+Type=oneshot
+
+[Install]
+WantedBy=multi-user.target

@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<service>
+  <short>GridFTP Data</short>
+  <description>GridFTP endpoint-to-endpoint data transfer</description>
+  <port protocol="tcp" port="50000-51000"/>
+</service>

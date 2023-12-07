@@ -1,0 +1,90 @@
+#!/bin/bash 
+
+#   Author: griznog
+#  Purpose: Configure firewalld on this host, putting interfaces in the proper zones and 
+#           setting up any additional services that are needed.
+
+# ZONES
+# Setting zones in the node config
+# wwctl node set --netname=NETNAME --netdev=DEVICE --nettag='zone=ZONE' NODENAME
+#
+# SERVICES
+# Services entry is expected to be a ; separated list of 'ZONE:service1[,service2[,service...]]' entries,
+# for example
+# "public:samba,gridftp-data,http,https;external:nfs-client"
+# `wwctl` will choke on special characters, so create these entries with `wwedit`
+
+# Pull in warewulf functions/variables for this node.
+[[ -f /warewulf/etc/functions ]] && source /warewulf/etc/functions || exit 1
+
+warn "$0: Firewalld Service post-start configuration running."
+
+###################################################################
+# Set zones for interfaces.
+declare -A interfaces
+{{range $devname, $netdev := .NetDevs -}}
+interfaces["{{ $netdev.Device }}"]='{{ if $netdev.Tags.zone }}{{ $netdev.Tags.zone }}{{ else }}public{{ end }}'
+{{ end }}
+for interface in ${!interfaces[*]}; do
+    warn "$0: Setting ${interface} to zone ${interfaces[${interface}]}"
+    firewall-cmd --change-interface=${interface} --zone=${interfaces[${interface}]} --permanent
+done
+####################################################################
+
+
+####################################################################
+# Enable services
+{{ if .Tags.firewalld_services_enable -}}
+services_enable='{{ .Tags.firewalld_services_enable }}'
+# Split 
+zonecfgs=( ${services_enable//;/ } )
+for zonecfg in ${zonecfgs[*]}; do
+  temparray=( ${zonecfg/:/ } )
+  zone=${temparray[0]}
+  services=( ${temparray[1]//,/ } )
+  for service in ${services[*]}; do
+    warn "$0: Adding service ${service} to zone ${zone}"
+    firewall-cmd --add-service=${service} --zone=${zone} --permanent
+  done
+done
+{{- end }}
+
+####################################################################
+# Disable services
+{{ if .Tags.firewalld_services_disable -}}
+services_disable='{{ .Tags.firewalld_services_disable }}'
+# Split
+zonecfgs=( ${services_disable//;/ } )
+for zonecfg in ${zonecfgs[*]}; do
+  temparray=( ${zonecfg/:/ } )
+  zone=${temparray[0]}
+  services=( ${temparray[1]//,/ } )
+  for service in ${services[*]}; do
+    warn "$0: Removing service ${service} from zone ${zone}"
+    firewall-cmd --remove-service=${service} --zone=${zone} --permanent
+  done
+done
+{{- end }}
+
+#####################################################################
+
+
+#####################################################################
+# Always disable these outside the cluster until further notice:
+warn "$0: Disabling dhcpv6-client and cockpit services on untrusted interfaces."
+
+firewall-cmd --remove-service=dhcpv6-client --zone=public --permanent
+firewall-cmd --remove-service=cockpit --zone=public --permanent
+
+firewall-cmd --remove-service=dhcpv6-client --zone=external --permanent
+firewall-cmd --remove-service=cockpit --zone=external --permanent
+
+######################################################################
+# Finally, put all these plans in motion.
+warn "$0: Reloading firewall rules."
+firewall-cmd --reload
+
+######################################################################
+# Last, we never want this to block startup, a firewalld with defaults
+# is better than no firewalld at all.
+exit 0

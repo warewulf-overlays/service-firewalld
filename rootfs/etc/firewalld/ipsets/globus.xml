@@ -1,0 +1,7 @@
+<?xml version="1.0" encoding="utf-8"?>
+<ipset type="hash:net">
+  <short>Globus</short>
+  <description>Globus IPs</description>
+  <option name="family" value="inet"/>
+  <entry>54.237.254.192/29</entry>
+</ipset>
